@@ -3,52 +3,52 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# # Main Feed Forward NN (FNN) Class
-# class FNNModel(nn.Module):
+# Main Feed Forward NN (FNN) Class
+class FNNModel(nn.Module):
 
-#     def __init__(self, ntoken, embedding_dimension, nhid, nlayers, dropout=0.5, tie_weights=False):
-#         super(FNNModel, self).__init__()
-#         self.ntoken = ntoken
-#         self.drop = nn.Dropout(dropout)
-#         self.encoder = nn.Embedding(ntoken, embedding_dimension)
-#         self.decoder = nn.Linear(nhid, ntoken, bias=False)
-#         self.nhid = nhid
-#         self.nlayers = nlayers
+    def __init__(self, ntoken, embedding_dimension, nhid, nlayers, dropout=0.5, tie_weights=False):
+        super(FNNModel, self).__init__()
+        self.ntoken = ntoken
+        self.drop = nn.Dropout(dropout)
+        self.encoder = nn.Embedding(ntoken, embedding_dimension)
+        self.decoder = nn.Linear(nhid, ntoken, bias=False)
+        self.nhid = nhid
+        self.nlayers = nlayers
 
-#         # linear function
-#         self.fc = nn.Linear(embedding_dimension, nhid)
-#         # Tanh function
-#         self.tanh = nn.Tanh()
+        # linear function
+        self.fc = nn.Linear(embedding_dimension, nhid)
+        # Tanh function
+        self.tanh = nn.Tanh()
 
-#         if tie_weights:
-#             if nhid != embedding_dimension:
-#                 raise ValueError(
-#                     'When using the tie flag, number of hidden units must be equal to embedding size.')
-#             self.decoder.weight = self.encoder.weight
-#         self.init_weights()
+        if tie_weights:
+            if nhid != embedding_dimension:
+                raise ValueError(
+                    'When using the tie flag, number of hidden units must be equal to embedding size.')
+            self.decoder.weight = self.encoder.weight
+        self.init_weights()
 
-#     def forward(self, input, hidden):
-#         # embedding layer
-#         embedding = self.encoder(input)
-#         # dropout layer
-#         x = self.drop(embedding)
-#         # linear layer
-#         x = self.fc(x)
-#         # tanh layer
-#         x = self.tanh(x)
-#         # softmax layer
-#         x = self.decoder(x).view(-1, self.ntoken)
-#         return F.log_softmax(x, dim=1), hidden
+    def forward(self, input, hidden):
+        # embedding layer
+        embedding = self.encoder(input)
+        # dropout layer
+        x = self.drop(embedding)
+        # linear layer
+        x = self.fc(x)
+        # tanh layer
+        x = self.tanh(x)
+        # softmax layer
+        x = self.decoder(x).view(-1, self.ntoken)
+        return F.log_softmax(x, dim=1), hidden
 
-#     def init_hidden(self, bsz):
-#         weight = next(self.parameters())
-#         return weight.new_zeros(self.nlayers, bsz, self.nhid)
+    def init_hidden(self, bsz):
+        weight = next(self.parameters())
+        return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
-#     def init_weights(self):
-#         initrange = 0.1
-#         nn.init.uniform_(self.encoder.weight, -initrange, initrange)
-#         nn.init.zeros_(self.decoder.weight)
-#         nn.init.uniform_(self.decoder.weight, -initrange, initrange)
+    def init_weights(self):
+        initrange = 0.1
+        nn.init.uniform_(self.encoder.weight, -initrange, initrange)
+        nn.init.zeros_(self.decoder.weight)
+        nn.init.uniform_(self.decoder.weight, -initrange, initrange)
 
 
 class RNNModel(nn.Module):

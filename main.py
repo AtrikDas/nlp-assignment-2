@@ -52,8 +52,9 @@ parser.add_argument('--nhead', type=int, default=2,
 parser.add_argument('--dry-run', action='store_true',
                     help='verify the code and the model')
 
-# # Extra argument to choose type of optimizer
-# parser.add_argument('--opt', type=str, default='SGD', help='choose optimizer type (SGD, Adam, RMSProp')
+# Extra argument to choose type of optimizer
+parser.add_argument('--opt', type=str, default='SGD',
+                    help='choose optimizer type (SGD, Adam, RMSProp')
 
 args = parser.parse_args()
 
@@ -107,8 +108,9 @@ ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
     model = model.TransformerModel(
         ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
-# elif args.model == 'FNN':
-#     model = model.FNNModel(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+elif args.model == 'FNN':
+    model = model.FNNModel(ntokens, args.emsize, args.nhid,
+                           args.nlayers, args.dropout, args.tied).to(device)
 else:
     model = model.RNNModel(args.model, ntokens, args.emsize,
                            args.nhid, args.nlayers, args.dropout, args.tied).to(device)
@@ -173,13 +175,13 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
 
-    # # Optimizer code
-    # if args.opt == "Adam":
-    #     opt = torch.optim.Adam(model.parameters(), lr=0.001)
-    # elif args.optimizer == "RMSprop":
-    #     opt = torch.optim.RMSprop(model.parameters(), lr=0.001)
-    # else:
-    #     opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    # Optimizer code
+    if args.opt == "Adam":
+        opt = torch.optim.Adam(model.parameters(), lr=0.001)
+    elif args.optimizer == "RMSprop":
+        opt = torch.optim.RMSprop(model.parameters(), lr=0.001)
+    else:
+        opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
     if args.model != 'Transformer':
         hidden = model.init_hidden(args.batch_size)
@@ -197,8 +199,8 @@ def train():
         loss = criterion(output, targets)
         loss.backward()
 
-        # # Optimizer step
-        # opt.step()
+        # Optimizer step
+        opt.step()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
