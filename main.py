@@ -10,11 +10,12 @@ import torch.onnx
 import data
 import model
 
-parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
+parser = argparse.ArgumentParser(
+    description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
-                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
+                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer, FNN)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=200,
@@ -51,6 +52,9 @@ parser.add_argument('--nhead', type=int, default=2,
 parser.add_argument('--dry-run', action='store_true',
                     help='verify the code and the model')
 
+# # Extra argument to choose type of optimizer
+# parser.add_argument('--opt', type=str, default='SGD', help='choose optimizer type (SGD, Adam, RMSProp')
+
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -79,6 +83,7 @@ corpus = data.Corpus(args.data)
 # dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
 # batch processing.
 
+
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
     nbatch = data.size(0) // bsz
@@ -87,6 +92,7 @@ def batchify(data, bsz):
     # Evenly divide the data across the bsz batches.
     data = data.view(bsz, -1).t().contiguous()
     return data.to(device)
+
 
 eval_batch_size = 10
 train_data = batchify(corpus.train, args.batch_size)
@@ -99,15 +105,20 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
-    model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
+    model = model.TransformerModel(
+        ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
+# elif args.model == 'FNN':
+#     model = model.FNNModel(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 else:
-    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+    model = model.RNNModel(args.model, ntokens, args.emsize,
+                           args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.NLLLoss()
 
 ###############################################################################
 # Training code
 ###############################################################################
+
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
@@ -161,6 +172,15 @@ def train():
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
+
+    # # Optimizer code
+    # if args.opt == "Adam":
+    #     opt = torch.optim.Adam(model.parameters(), lr=0.001)
+    # elif args.optimizer == "RMSprop":
+    #     opt = torch.optim.RMSprop(model.parameters(), lr=0.001)
+    # else:
+    #     opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
     if args.model != 'Transformer':
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
@@ -177,6 +197,9 @@ def train():
         loss = criterion(output, targets)
         loss.backward()
 
+        # # Optimizer step
+        # opt.step()
+
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         for p in model.parameters():
@@ -188,9 +211,9 @@ def train():
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+                  'loss {:5.2f} | ppl {:8.2f}'.format(
+                      epoch, batch, len(train_data) // args.bptt, lr,
+                      elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
         if args.dry_run:
@@ -201,7 +224,8 @@ def export_onnx(path, batch_size, seq_len):
     print('The model is also exported in ONNX format at {}'.
           format(os.path.realpath(args.onnx_export)))
     model.eval()
-    dummy_input = torch.LongTensor(seq_len * batch_size).zero_().view(-1, batch_size).to(device)
+    dummy_input = torch.LongTensor(
+        seq_len * batch_size).zero_().view(-1, batch_size).to(device)
     hidden = model.init_hidden(batch_size)
     torch.onnx.export(model, (dummy_input, hidden), path)
 
@@ -218,8 +242,8 @@ try:
         val_loss = evaluate(val_data)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                           val_loss, math.exp(val_loss)))
+              'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                         val_loss, math.exp(val_loss)))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:

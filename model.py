@@ -3,6 +3,54 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# # Main Feed Forward NN (FNN) Class
+# class FNNModel(nn.Module):
+
+#     def __init__(self, ntoken, embedding_dimension, nhid, nlayers, dropout=0.5, tie_weights=False):
+#         super(FNNModel, self).__init__()
+#         self.ntoken = ntoken
+#         self.drop = nn.Dropout(dropout)
+#         self.encoder = nn.Embedding(ntoken, embedding_dimension)
+#         self.decoder = nn.Linear(nhid, ntoken, bias=False)
+#         self.nhid = nhid
+#         self.nlayers = nlayers
+
+#         # linear function
+#         self.fc = nn.Linear(embedding_dimension, nhid)
+#         # Tanh function
+#         self.tanh = nn.Tanh()
+
+#         if tie_weights:
+#             if nhid != embedding_dimension:
+#                 raise ValueError(
+#                     'When using the tie flag, number of hidden units must be equal to embedding size.')
+#             self.decoder.weight = self.encoder.weight
+#         self.init_weights()
+
+#     def forward(self, input, hidden):
+#         # embedding layer
+#         embedding = self.encoder(input)
+#         # dropout layer
+#         x = self.drop(embedding)
+#         # linear layer
+#         x = self.fc(x)
+#         # tanh layer
+#         x = self.tanh(x)
+#         # softmax layer
+#         x = self.decoder(x).view(-1, self.ntoken)
+#         return F.log_softmax(x, dim=1), hidden
+
+#     def init_hidden(self, bsz):
+#         weight = next(self.parameters())
+#         return weight.new_zeros(self.nlayers, bsz, self.nhid)
+
+#     def init_weights(self):
+#         initrange = 0.1
+#         nn.init.uniform_(self.encoder.weight, -initrange, initrange)
+#         nn.init.zeros_(self.decoder.weight)
+#         nn.init.uniform_(self.decoder.weight, -initrange, initrange)
+
+
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
@@ -12,14 +60,17 @@ class RNNModel(nn.Module):
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
         if rnn_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
+            self.rnn = getattr(nn, rnn_type)(
+                ninp, nhid, nlayers, dropout=dropout)
         else:
             try:
-                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
+                nonlinearity = {'RNN_TANH': 'tanh',
+                                'RNN_RELU': 'relu'}[rnn_type]
             except KeyError:
-                raise ValueError( """An invalid option for `--model` was supplied,
+                raise ValueError("""An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
+            self.rnn = nn.RNN(ninp, nhid, nlayers,
+                              nonlinearity=nonlinearity, dropout=dropout)
         self.decoder = nn.Linear(nhid, ntoken)
 
         # Optionally tie weights as in:
@@ -30,7 +81,8 @@ class RNNModel(nn.Module):
         # https://arxiv.org/abs/1611.01462
         if tie_weights:
             if nhid != ninp:
-                raise ValueError('When using the tied flag, nhid must be equal to emsize')
+                raise ValueError(
+                    'When using the tied flag, nhid must be equal to emsize')
             self.decoder.weight = self.encoder.weight
 
         self.init_weights()
@@ -62,6 +114,8 @@ class RNNModel(nn.Module):
             return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
 # Temporarily leave PositionalEncoding module here. Will be moved somewhere else.
+
+
 class PositionalEncoding(nn.Module):
     r"""Inject some information about the relative or absolute position of the tokens
         in the sequence. The positional encodings have the same dimension as
@@ -85,7 +139,8 @@ class PositionalEncoding(nn.Module):
 
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(
+            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0).transpose(0, 1)
@@ -105,6 +160,7 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
+
 class TransformerModel(nn.Module):
     """Container module with an encoder, a recurrent or transformer module, and a decoder."""
 
@@ -113,7 +169,8 @@ class TransformerModel(nn.Module):
         try:
             from torch.nn import TransformerEncoder, TransformerEncoderLayer
         except:
-            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
+            raise ImportError(
+                'TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
         self.model_type = 'Transformer'
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(ninp, dropout)
@@ -127,7 +184,8 @@ class TransformerModel(nn.Module):
 
     def _generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        mask = mask.float().masked_fill(mask == 0, float(
+            '-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
     def init_weights(self):
@@ -140,7 +198,8 @@ class TransformerModel(nn.Module):
         if has_mask:
             device = src.device
             if self.src_mask is None or self.src_mask.size(0) != len(src):
-                mask = self._generate_square_subsequent_mask(len(src)).to(device)
+                mask = self._generate_square_subsequent_mask(
+                    len(src)).to(device)
                 self.src_mask = mask
         else:
             self.src_mask = None
