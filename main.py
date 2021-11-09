@@ -178,7 +178,7 @@ def train():
     # Optimizer code
     if args.opt == "Adam":
         opt = torch.optim.Adam(model.parameters(), lr=0.001)
-    elif args.optimizer == "RMSprop":
+    elif args.opt == "RMSprop":
         opt = torch.optim.RMSprop(model.parameters(), lr=0.001)
     else:
         opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
